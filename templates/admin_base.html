@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block titulo %}Painel{% endblock %} | {{ empresa }}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<nav class="painel-topo">
+  <b>Painel · {{ empresa }}</b>
+  <a href="{{ url_for('admin_conversas') }}" class="{{ 'ativo' if request.endpoint in ('admin_conversas', 'admin_conversa') }}">Conversas</a>
+  <a href="{{ url_for('admin_conhecimento') }}" class="{{ 'ativo' if request.endpoint == 'admin_conhecimento' }}">Base de conhecimento</a>
+  <a href="{{ url_for('pagina_chat') }}" target="_blank">Abrir chat ↗</a>
+</nav>
+<main class="painel">
+  {% block conteudo %}{% endblock %}
+</main>
+</body>
+</html>

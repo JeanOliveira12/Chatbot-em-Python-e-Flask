@@ -1,0 +1,33 @@
+{% extends "admin_base.html" %}
+{% block titulo %}Conversa #{{ conversa.id }}{% endblock %}
+{% block conteudo %}
+<p><a href="{{ url_for('admin_conversas') }}">← Voltar</a></p>
+<h1>Conversa #{{ conversa.id }} <span class="selo {{ conversa.status }}">{{ {'bot': 'Bot', 'humano': 'Aguardando atendente', 'encerrada': 'Encerrada'}[conversa.status] }}</span></h1>
+{% if conversa.motivo_transferencia %}<p class="dica">Motivo da transferência: {{ conversa.motivo_transferencia }}</p>{% endif %}
+
+<div class="cartao">
+  <div class="historico">
+    {% for m in mensagens %}
+      <div class="msg {{ m.papel }}">{% if m.papel == 'atendente' %}<span class="autor">Atendente</span>{% endif %}{{ m.conteudo }}</div>
+    {% else %}
+      <p class="vazio">Sem mensagens.</p>
+    {% endfor %}
+  </div>
+
+  {% if conversa.status != 'encerrada' %}
+  <form method="post" action="{{ url_for('admin_responder', conversa_id=conversa.id) }}">
+    <textarea class="campo" name="texto" placeholder="Responder como atendente..." required></textarea>
+    <div class="linha-acoes"><button class="btn">Enviar resposta</button></div>
+  </form>
+  {% endif %}
+
+  <form method="post" action="{{ url_for('admin_status', conversa_id=conversa.id) }}" class="linha-acoes">
+    {% if conversa.status != 'bot' %}<button class="btn sec" name="status" value="bot">Devolver ao assistente virtual</button>{% endif %}
+    {% if conversa.status != 'encerrada' %}<button class="btn sec" name="status" value="encerrada">Encerrar atendimento</button>{% endif %}
+  </form>
+</div>
+
+{% if conversa.status == 'humano' %}
+<script>setTimeout(() => location.reload(), 10000); // atualiza para ver mensagens novas do cliente</script>
+{% endif %}
+{% endblock %}

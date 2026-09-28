@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Atendimento | {{ empresa }}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="chat-pagina">
+  <div class="chat">
+    <div class="chat-topo">
+      <div class="chat-avatar">{{ empresa[0] }}</div>
+      <div>
+        <b>{{ empresa }}</b>
+        <small id="statusTexto">Assistente virtual · online</small>
+      </div>
+    </div>
+
+    <div class="chat-msgs" id="mensagens" aria-live="polite">
+      <div class="msg assistant">Olá! Sou o assistente virtual do {{ empresa }}. Posso ajudar com horários, ingressos, atrações e festas de aniversário. O que você gostaria de saber?</div>
+    </div>
+
+    <div class="sugestoes" id="sugestoes">
+      <button type="button">Qual o horário de funcionamento?</button>
+      <button type="button">Quanto custa o ingresso?</button>
+      <button type="button">Vocês fazem festa de aniversário?</button>
+      <button type="button">Quero falar com um atendente</button>
+    </div>
+
+    <form class="chat-form" id="formulario">
+      <input id="entrada" type="text" placeholder="Digite sua mensagem..." autocomplete="off" maxlength="2000">
+      <button type="submit" id="enviar">Enviar</button>
+    </form>
+  </div>
+</div>
+
+<script>
+const caixa = document.getElementById("mensagens");
+const entrada = document.getElementById("entrada");
+const botao = document.getElementById("enviar");
+const statusTexto = document.getElementById("statusTexto");
+
+let conversaId = sessionStorage.getItem("conversa_id");
+let ultimoId = 0;           // id da última mensagem já exibida
+let status = "bot";
+let polling = null;
+
+// Mostra uma mensagem na tela. Usa textContent (nunca innerHTML) para evitar injeção de código.
+function mostrar(papel, texto) {
+  const div = document.createElement("div");
+  div.className = "msg " + papel;
+  if (papel === "atendente") {
+    const autor = document.createElement("span");
+    autor.className = "autor";
+    autor.textContent = "Atendente";
+    div.appendChild(autor);
+  }
+  div.appendChild(document.createTextNode(texto));
+  caixa.appendChild(div);
+  caixa.scrollTop = caixa.scrollHeight;
+}
+
+function atualizarStatus(novo) {
+  status = novo;
+  statusTexto.textContent = {
+    bot: "Assistente virtual · online",
+    humano: "Atendimento humano · aguarde a resposta",
+    encerrada: "Atendimento encerrado"
+  }[novo] || "";
+  // Com atendente humano ou encerrada, as sugestões do bot deixam de fazer sentido
+  document.getElementById("sugestoes").style.display =
+    novo === "bot" && document.querySelectorAll("#sugestoes button").length ? "" : "none";
+  // Enquanto estiver com humano, consulta o servidor a cada 3 s para ver respostas novas
+  if (novo === "humano" && !polling) polling = setInterval(buscarNovas, 3000);
+  if (novo !== "humano" && polling) { clearInterval(polling); polling = null; }
+}
+
+async function garantirConversa() {
+  if (conversaId) return;
+  const r = await fetch("/api/conversas", { method: "POST" });
+  conversaId = (await r.json()).conversa_id;
+  sessionStorage.setItem("conversa_id", conversaId);
+}
+
+async function buscarNovas() {
+  if (!conversaId) return;
+  const r = await fetch(`/api/conversas/${conversaId}/mensagens?depois=${ultimoId}`);
+  if (r.status === 404) { sessionStorage.removeItem("conversa_id"); conversaId = null; return; }
+  const dados = await r.json();
+  for (const m of dados.mensagens) {
+    if (m.papel !== "user") mostrar(m.papel, m.conteudo);  // as do cliente já estão na tela
+    ultimoId = m.id;
+  }
+  atualizarStatus(dados.status);
+}
+
+async function enviar(texto) {
+  texto = texto.trim();
+  if (!texto) return;
+  mostrar("user", texto);
+  entrada.value = "";
+  botao.disabled = true;
+
+  const digitando = document.createElement("div");
+  digitando.className = "digitando";
+  digitando.textContent = status === "bot" ? "Digitando..." : "";
+  caixa.appendChild(digitando);
+  caixa.scrollTop = caixa.scrollHeight;
+
+  try {
+    await garantirConversa();
+    const r = await fetch(`/api/conversas/${conversaId}/mensagens`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ texto })
+    });
+    if (!r.ok) throw new Error("Falha no envio");
+    await buscarNovas();
+  } catch (e) {
+    mostrar("sistema", "Não foi possível enviar. Tente novamente.");
+  } finally {
+    digitando.remove();
+    botao.disabled = false;
+    entrada.focus();
+  }
+}
+
+document.getElementById("formulario").addEventListener("submit", e => { e.preventDefault(); enviar(entrada.value); });
+// Sugestões: some só a que foi clicada; as outras continuam disponíveis
+const sugestoes = document.getElementById("sugestoes");
+sugestoes.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+  b.remove();
+  if (!sugestoes.children.length) sugestoes.style.display = "none";
+  enviar(b.textContent);
+}));
+
+// Se a página for recarregada, recupera a conversa em andamento
+if (conversaId) {
+  fetch(`/api/conversas/${conversaId}/mensagens`).then(r => r.ok ? r.json() : null).then(dados => {
+    if (!dados) { sessionStorage.removeItem("conversa_id"); conversaId = null; return; }
+    for (const m of dados.mensagens) { mostrar(m.papel, m.conteudo); ultimoId = m.id; }
+    atualizarStatus(dados.status);
+  });
+}
+</script>
+</body>
+</html>

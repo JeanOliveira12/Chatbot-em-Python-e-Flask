@@ -1,0 +1,43 @@
+{% extends "admin_base.html" %}
+{% block titulo %}Base de conhecimento{% endblock %}
+{% block conteudo %}
+<h1>Base de conhecimento</h1>
+<div class="grade-conhecimento">
+  <div class="cartao">
+    {% if salvo %}<div class="aviso-ok">Salvo! O assistente já usa a nova versão.</div>{% endif %}
+    <form method="get" class="linha-acoes" style="margin:0 0 12px">
+      <select class="campo" name="arquivo" style="width:auto" onchange="this.form.submit()">
+        {% for a in arquivos %}<option {{ 'selected' if a == atual }}>{{ a }}</option>{% endfor %}
+      </select>
+    </form>
+    {% if atual %}
+    <form method="post">
+      <input type="hidden" name="arquivo" value="{{ atual }}">
+      <textarea class="campo editor" name="conteudo">{{ conteudo }}</textarea>
+      <p class="dica">Cada seção que começa com "## " vira um trecho que o assistente pode consultar. Um assunto por seção funciona melhor.</p>
+      <button class="btn">Salvar</button>
+    </form>
+    {% else %}
+    <p class="vazio">Nenhum arquivo .md na pasta conhecimento/.</p>
+    {% endif %}
+  </div>
+
+  <div class="cartao">
+    <b>Testar a busca</b>
+    <p class="dica">Veja quais trechos seriam enviados à IA para uma pergunta.</p>
+    <form method="get">
+      <input type="hidden" name="arquivo" value="{{ atual or '' }}">
+      <input class="campo" name="teste" value="{{ teste }}" placeholder="Ex.: quanto custa a festa?">
+      <div class="linha-acoes"><button class="btn sec">Buscar</button></div>
+    </form>
+    {% if resultados is not none %}
+      {% for r in resultados %}
+        <div class="trecho"><b>{{ r.titulo }}</b><small>{{ r.fonte }} · relevância {{ r.pontuacao }}</small>
+{{ r.texto[:220] }}{% if r.texto|length > 220 %}...{% endif %}</div>
+      {% else %}
+        <p class="dica">Nenhum trecho encontrado. O assistente vai dizer que não tem essa informação.</p>
+      {% endfor %}
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

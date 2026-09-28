@@ -1,0 +1,26 @@
+{% extends "admin_base.html" %}
+{% block titulo %}Conversas{% endblock %}
+{% block conteudo %}
+<h1>Conversas</h1>
+<div class="cartao">
+  {% if conversas %}
+  <table>
+    <thead><tr><th>#</th><th>Status</th><th>Primeira pergunta</th><th>Mensagens</th><th>Última atividade</th><th></th></tr></thead>
+    <tbody>
+    {% for c in conversas %}
+      <tr>
+        <td>{{ c.id }}</td>
+        <td><span class="selo {{ c.status }}">{{ {'bot': 'Bot', 'humano': 'Aguardando atendente', 'encerrada': 'Encerrada'}[c.status] }}</span></td>
+        <td>{{ (c.primeira_pergunta or '—')[:80] }}{% if c.motivo_transferencia %}<br><small class="dica">Motivo: {{ c.motivo_transferencia }}</small>{% endif %}</td>
+        <td>{{ c.total_mensagens }}</td>
+        <td>{{ c.ultima_atividade or c.criada_em }}</td>
+        <td><a href="{{ url_for('admin_conversa', conversa_id=c.id) }}">Abrir</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="vazio">Nenhuma conversa ainda. Abra o chat e mande uma mensagem.</p>
+  {% endif %}
+</div>
+{% endblock %}
